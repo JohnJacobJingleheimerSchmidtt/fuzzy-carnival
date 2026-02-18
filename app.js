@@ -8,10 +8,10 @@ const PORT = process.env.PORT || 3000;
 const API_KEY = "AIzaSyBa16o1Jv42FfBk8axjnmaTsmI1smKHSfY"; 
 const genAI = new GoogleGenerativeAI(API_KEY);
 
-// الحل النهائي: استخدام الإصدار المستقر v1 مع نموذج Flash
+// الحل النهائي: استخدام v1 مع مسمى الحقل الرسمي system_instruction
 const model = genAI.getGenerativeModel({ 
     model: "gemini-1.5-flash",
-    systemInstruction: "أنت خبير زراعي وعلمي. عند استلام صورة نبات: حدد نوعه، شخص المرض بدقة، اذكر المسبب، وقدم خطة علاج (عضوية وكيميائية). إذا كانت الصورة لمسألة علمية أو سؤال: قم بحله بدقة مع الشرح. اجعل إجابتك منظمة وباللغة العربية."
+    system_instruction: "أنت خبير زراعي وعلمي. عند استلام صورة نبات: حدد نوعه، شخص المرض بدقة، اذكر المسبب، وقدم خطة علاج (عضوية وكيميائية). إذا كانت الصورة لمسألة علمية أو سؤال: قم بحله بدقة مع الشرح. اجعل إجابتك منظمة وباللغة العربية."
 }, { apiVersion: 'v1' });
 
 app.use(express.json({ limit: '50mb' }));
@@ -22,7 +22,7 @@ const htmlContent = `
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>المحلل الخبير v5.0</title>
+    <title>المحلل الخبير v5.1</title>
     <style>
         :root { --primary: #10b981; --bg: #0f172a; --card: #1e293b; }
         body { font-family: system-ui, sans-serif; background: var(--bg); color: white; display: flex; justify-content: center; padding: 20px; margin: 0; }
@@ -102,7 +102,7 @@ app.post('/api/analyze', async (req, res) => {
         const base64Data = image.split(",")[1];
         const result = await model.generateContent([
             { inlineData: { data: base64Data, mimeType: "image/jpeg" } },
-            { text: "حلل هذه الصورة بناءً على خبرتك العلمية والزراعية." }
+            { text: "حلل هذه الصورة بناءً على خبرتك العلمية والزراعية المذكورة في تعليمات النظام." }
         ]);
         res.json({ analysis: result.response.text() });
     } catch (error) {
