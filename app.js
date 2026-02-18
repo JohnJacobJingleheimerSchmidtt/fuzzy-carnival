@@ -1,18 +1,11 @@
 import express from 'express';
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import OpenAI from "openai";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// مفتاح API
-const API_KEY = "AIzaSyBa16o1Jv42FfBk8axjnmaTsmI1smKHSfY"; 
-const genAI = new GoogleGenerativeAI(API_KEY);
-
-// الحل الصحيح للـ 404: استدعاء الموديل بدون تحديد apiVersion يدوي في الاستدعاء الثاني
-const model = genAI.getGenerativeModel({ 
-    model: "gemini-1.5-flash",
-    system_instruction: "أنت خبير زراعي وعلمي. عند استلام صورة نبات: حدد نوعه، شخص المرض بدقة، اذكر المسبب، وقدم خطة علاج. إذا كانت الصورة لسؤال علمي: قم بحله مع الشرح. الإجابة بالعربية دائماً."
-});
+// ضع مفتاح OpenAI الخاص بك هنا
+const openai = new OpenAI({ apiKey: "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" });
 
 app.use(express.json({ limit: '50mb' }));
 
@@ -22,7 +15,7 @@ const htmlContent = `
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>المحلل الخبير v5.2</title>
+    <title>المحلل الخبير GPT-4o</title>
     <style>
         :root { --primary: #10b981; --bg: #0f172a; --card: #1e293b; }
         body { font-family: system-ui, sans-serif; background: var(--bg); color: white; display: flex; justify-content: center; padding: 20px; margin: 0; }
@@ -37,7 +30,7 @@ const htmlContent = `
 </head>
 <body>
     <div class="card">
-        <h2>🌿 المحلل الخبير</h2>
+        <h2>🌿 خبير النباتات GPT</h2>
         <video id="v" autoplay playsinline></video>
         <img id="p">
         <canvas id="c" style="display:none;"></canvas>
@@ -47,7 +40,7 @@ const htmlContent = `
             <button style="background:#64748b;" onclick="document.getElementById('f').click()">رفع ملف</button>
         </div>
         <input type="file" id="f" accept="image/*" hidden>
-        <button id="btnAnlyz"><span id="txt">تحليل عميق</span></button>
+        <button id="btnAnlyz"><span id="txt">تحليل بواسطة GPT-4o</span></button>
         <div id="loader" class="loader"></div>
         <div id="result"></div>
     </div>
@@ -66,7 +59,7 @@ const htmlContent = `
             const r=new FileReader(); r.onload=()=>{ p.src=r.result; p.style.display='block'; btnA.style.display='block'; v.style.display='none'; }; r.readAsDataURL(e.target.files[0]);
         };
         btnA.onclick = async () => {
-            ld.style.display='block'; txt.innerText='جاري التحليل...'; btnA.disabled=true; res.style.display='none';
+            ld.style.display='block'; txt.innerText='جاري التواصل مع GPT...'; btnA.disabled=true; res.style.display='none';
             try {
                 const response = await fetch('/api/analyze', {
                     method: 'POST',
@@ -77,7 +70,7 @@ const htmlContent = `
                 res.innerHTML = data.analysis;
                 res.style.display = 'block';
             } catch (e) { alert("خطأ في الاتصال"); }
-            finally { ld.style.display='none'; txt.innerText='تحليل عميق'; btnA.disabled=false; }
+            finally { ld.style.display='none'; txt.innerText='تحليل بواسطة GPT-4o'; btnA.disabled=false; }
         };
     </script>
 </body>
@@ -89,15 +82,26 @@ app.get('/', (req, res) => res.send(htmlContent));
 app.post('/api/analyze', async (req, res) => {
     try {
         const { image } = req.body;
-        const base64Data = image.split(",")[1];
-        const result = await model.generateContent([
-            { inlineData: { data: base64Data, mimeType: "image/jpeg" } },
-            { text: "قم بتحليل هذه الصورة." }
-        ]);
-        res.json({ analysis: result.response.text() });
+        const response = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: [
+                {
+                    role: "system",
+                    content: "أنت خبير زراعي متخصص في تشخيص أمراض النباتات من الصور. قدم إجابات دقيقة بالعربية تشمل: اسم المرض، السبب، وخيارات العلاج."
+                },
+                {
+                    role: "user",
+                    content: [
+                        { type: "text", text: "حلل هذه الصورة وأخبرني بحالة النبات." },
+                        { type: "image_url", image_url: { "url": image } },
+                    ],
+                },
+            ],
+        });
+        res.json({ analysis: response.choices[0].message.content });
     } catch (error) {
         res.status(500).json({ analysis: "حدث خطأ: " + error.message });
     }
 });
 
-app.listen(PORT, () => console.log('Server is live!'));
+app.listen(PORT, () => console.log('Server is live with GPT-4o!'));
