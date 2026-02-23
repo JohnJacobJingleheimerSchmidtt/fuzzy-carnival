@@ -1,112 +1,124 @@
-import express from 'express';
+import express from "express";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 🔐 جلب المفتاح من Environment Variables
+// ✅ جلب المفتاح من Render Environment
 const API_KEY = process.env.GEMINI_API_KEY;
 
+// لا نغلق السيرفر إذا لم يوجد المفتاح، فقط نظهر تحذير
 if (!API_KEY) {
-    console.error("AIzaSyBa16o1Jv42FfBk8axjnmaTsmI1smKHSfY");
-    process.exit(1);
+  console.warn("⚠️ تحذير: GEMINI_API_KEY غير موجود في Environment Variables");
 }
 
-const genAI = new GoogleGenerativeAI(API_KEY);
+const genAI = API_KEY ? new GoogleGenerativeAI(API_KEY) : null;
 
-const model = genAI.getGenerativeModel({
-    model: "gemini-1.5-flash",
-    system_instruction: "أنت خبير زراعي متخصص. عند استلام صورة، شخص حالة النبات وقدم نصائح دقيقة بالعربية."
-});
+const model = genAI
+  ? genAI.getGenerativeModel({
+      model: "gemini-1.5-flash"
+    })
+  : null;
 
-app.use(express.json({ limit: '50mb' }));
+app.use(express.json({ limit: "50mb" }));
 
-const htmlContent = `
+// الصفحة الأمامية
+app.get("/", (req, res) => {
+  res.send(`
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>محلل النباتات</title>
-    <style>
-        body { font-family: sans-serif; background: #0f172a; color: white; text-align: center; padding: 20px; }
-        .card { background: #1e293b; padding: 20px; border-radius: 15px; max-width: 400px; margin: auto; }
-        img { width: 100%; border-radius: 10px; display: none; margin-top: 10px; }
-        button { background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; margin: 5px; }
-        #result { margin-top: 20px; text-align: right; background: #0f172a; padding: 15px; border-radius: 10px; display: none; }
-    </style>
+<meta charset="UTF-8">
+<title>محلل النباتات</title>
+<style>
+body{font-family:sans-serif;background:#0f172a;color:white;text-align:center;padding:20px}
+.card{background:#1e293b;padding:20px;border-radius:15px;max-width:400px;margin:auto}
+img{width:100%;border-radius:10px;display:none;margin-top:10px}
+button{background:#10b981;color:white;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;margin:5px}
+#result{margin-top:20px;text-align:right;background:#0f172a;padding:15px;border-radius:10px;display:none}
+</style>
 </head>
 <body>
-    <div class="card">
-        <h2>🌿 فحص النباتات</h2>
-        <input type="file" id="f" accept="image/*" hidden>
-        <button onclick="document.getElementById('f').click()">اختر صورة</button>
-        <img id="p">
-        <button id="btn" style="display:none; width:100%; background:#3b82f6; margin-top:10px;">تحليل الآن</button>
-        <div id="result"></div>
-    </div>
-    <script>
-        const f=document.getElementById('f'), 
-              p=document.getElementById('p'), 
-              btn=document.getElementById('btn'), 
-              res=document.getElementById('result');
+<div class="card">
+<h2>🌿 فحص النباتات</h2>
+<input type="file" id="file" accept="image/*" hidden>
+<button onclick="document.getElementById('file').click()">اختر صورة</button>
+<img id="preview">
+<button id="analyze" style="display:none;width:100%;background:#3b82f6;margin-top:10px;">تحليل</button>
+<div id="result"></div>
+</div>
 
-        f.onchange = (e) => {
-            const r=new FileReader();
-            r.onload=()=>{
-                p.src=r.result;
-                p.style.display='block';
-                btn.style.display='block';
-            };
-            r.readAsDataURL(e.target.files[0]);
-        };
+<script>
+const file=document.getElementById('file');
+const preview=document.getElementById('preview');
+const analyze=document.getElementById('analyze');
+const result=document.getElementById('result');
 
-        btn.onclick = async () => {
-            btn.innerText='جاري التحليل...';
-            btn.disabled=true;
+file.onchange = (e)=>{
+ const reader=new FileReader();
+ reader.onload=()=>{
+   preview.src=reader.result;
+   preview.style.display='block';
+   analyze.style.display='block';
+ };
+ reader.readAsDataURL(e.target.files[0]);
+};
 
-            const response = await fetch('/api/analyze', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ image: p.src })
-            });
+analyze.onclick = async ()=>{
+ analyze.innerText='جاري التحليل...';
+ analyze.disabled=true;
 
-            const data = await response.json();
-            res.innerText = data.analysis;
-            res.style.display = 'block';
+ const res = await fetch('/api/analyze',{
+   method:'POST',
+   headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({image:preview.src})
+ });
 
-            btn.innerText='تحليل الآن';
-            btn.disabled=false;
-        };
-    </script>
+ const data = await res.json();
+ result.innerText = data.analysis;
+ result.style.display='block';
+
+ analyze.innerText='تحليل';
+ analyze.disabled=false;
+};
+</script>
 </body>
 </html>
-`;
-
-app.get('/', (req, res) => res.send(htmlContent));
-
-app.post('/api/analyze', async (req, res) => {
-    try {
-        const { image } = req.body;
-        const base64Data = image.split(",")[1];
-
-        const result = await model.generateContent([
-            {
-                inlineData: {
-                    data: base64Data,
-                    mimeType: "image/jpeg"
-                }
-            },
-            { text: "حلل هذه الصورة زراعياً." }
-        ]);
-
-        res.json({ analysis: result.response.text() });
-
-    } catch (error) {
-        res.status(500).json({ 
-            analysis: "حدث خطأ أثناء التحليل: " + error.message 
-        });
-    }
+`);
 });
 
-app.listen(PORT, () => console.log("✅ السيرفر يعمل على المنفذ " + PORT));
+// API التحليل
+app.post("/api/analyze", async (req, res) => {
+  try {
+    if (!model) {
+      return res.json({ analysis: "⚠️ لم يتم إعداد مفتاح API في السيرفر." });
+    }
+
+    const { image } = req.body;
+    if (!image) {
+      return res.json({ analysis: "لم يتم إرسال صورة." });
+    }
+
+    const base64Data = image.split(",")[1];
+
+    const result = await model.generateContent([
+      {
+        inlineData: {
+          data: base64Data,
+          mimeType: "image/jpeg"
+        }
+      },
+      { text: "حلل هذه الصورة زراعياً وشخص حالة النبات وقدم نصائح بالعربية." }
+    ]);
+
+    res.json({ analysis: result.response.text() });
+
+  } catch (error) {
+    console.error(error);
+    res.json({ analysis: "حدث خطأ أثناء التحليل." });
+  }
+});
+
+app.listen(PORT, () => {
+  console.log("✅ Server running on port " + PORT);
+});
