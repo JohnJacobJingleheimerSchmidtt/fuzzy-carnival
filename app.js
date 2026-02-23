@@ -15,39 +15,58 @@ app.get('/', (req, res) => res.send(`
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>طبيب النبات</title>
+    <title>طبيب النبات - فريق العمل</title>
     <style>
-        body { font-family: sans-serif; background: #111; color: white; text-align: center; padding: 20px; }
-        .box { background: #222; padding: 20px; border-radius: 20px; max-width: 500px; margin: auto; }
-        .preview-box { width: 100%; aspect-ratio: 4/3; background: #000; border-radius: 10px; overflow: hidden; margin: 15px 0; }
+        :root { --primary: #10b981; --bg: #0f172a; }
+        body { font-family: system-ui, sans-serif; background: var(--bg); color: white; text-align: center; padding: 20px; margin: 0; }
+        .box { background: #1e293b; padding: 20px; border-radius: 24px; max-width: 500px; margin: auto; border: 1px solid #334155; }
+        .preview-box { width: 100%; aspect-ratio: 4/3; background: #000; border-radius: 15px; overflow: hidden; margin: 15px 0; position: relative; }
         video, img { width: 100%; height: 100%; object-fit: cover; }
-        button { background: #10b981; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; margin: 5px; font-weight: bold; }
-        #res { margin-top: 20px; text-align: right; background: #333; padding: 15px; border-radius: 10px; display: none; }
+        button { background: var(--primary); color: white; border: none; padding: 12px 18px; border-radius: 10px; cursor: pointer; margin: 5px; font-weight: bold; transition: 0.3s; }
+        button:hover { opacity: 0.9; transform: translateY(-1px); }
+        #res { margin-top: 20px; text-align: right; background: #0f172a; padding: 15px; border-radius: 15px; display: none; border-right: 5px solid var(--primary); line-height: 1.8; }
+        
+        /* قسم أسماء الفريق */
+        .credits { margin-top: 30px; padding: 15px; border-top: 1px solid #334155; font-size: 0.9rem; color: #94a3b8; }
+        .team-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+        .member { background: #0f172a; padding: 8px; border-radius: 8px; color: #cbd5e1; border: 1px solid #1e293b; }
+        .lead { grid-column: span 2; color: var(--primary); font-weight: bold; border-color: var(--primary); }
     </style>
 </head>
 <body>
     <div class="box">
-        <h2>🌿 طبيب النبات</h2>
+        <h1 style="color: var(--primary); margin-bottom: 5px;">🌿 طبيب النبات</h1>
+        <p style="color: #94a3b8; font-size: 0.9rem;">بواسطة الذكاء الاصطناعي Llama 4 Maverick</p>
         
         <div class="preview-box">
             <video id="v" autoplay playsinline></video>
             <img id="p" style="display:none;">
         </div>
 
-        <div style="margin-bottom: 10px;">
-            <button onclick="startCam()">تشغيل الكاميرا</button>
-            <button onclick="takePic()">التقاط صورة</button>
+        <div>
+            <button onclick="startCam()">📸 تشغيل الكاميرا</button>
+            <button onclick="takePic()">🎯 التقاط صورة</button>
         </div>
         
-        <div style="border-top: 1px solid #444; padding-top: 10px;">
-            <p>أو اختر صورة من جهازك:</p>
+        <div style="margin-top: 15px;">
             <input type="file" id="f" accept="image/*" style="display:none;" onchange="loadFile(event)">
-            <button onclick="document.getElementById('f').click()" style="background:#4b5563;">📁 اختيار صورة</button>
+            <button onclick="document.getElementById('f').click()" style="background:#475569; width: 80%;">📁 اختيار صورة من الجهاز</button>
         </div>
 
-        <button id="anBtn" onclick="analyze()" style="display:none; background:#3b82f6; width:100%; margin-top:20px;">تحليل الإصابة الآن</button>
-        <div id="ld" style="display:none; margin-top:10px;">جاري الفحص...</div>
+        <button id="anBtn" onclick="analyze()" style="display:none; background:#3b82f6; width:100%; margin-top:20px; font-size: 1.1rem;">بدء التحليل الفوري</button>
+        <div id="ld" style="display:none; margin-top:15px; color: var(--primary);">جاري فحص الأنسجة النباتية...</div>
         <div id="res"></div>
+
+        <div class="credits">
+            <p style="margin-bottom: 10px; font-weight: bold;">فريق التطوير:</p>
+            <div class="team-grid">
+                <div class="member lead">أحمد ماجد (Ahmed Majed)</div>
+                <div class="member">محمد حسن</div>
+                <div class="member">علي سعود</div>
+                <div class="member">محمد عبد الرحيم</div>
+                <div class="member">معتز سلطان</div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -55,9 +74,11 @@ app.get('/', (req, res) => res.send(`
         const v=document.getElementById('v'), p=document.getElementById('p'), res=document.getElementById('res'), anBtn=document.getElementById('anBtn');
 
         async function startCam() {
-            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-            v.srcObject = stream;
-            v.style.display='block'; p.style.display='none';
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+                v.srcObject = stream;
+                v.style.display='block'; p.style.display='none';
+            } catch(e) { alert("يرجى السماح بالوصول للكاميرا"); }
         }
 
         function takePic() {
@@ -91,9 +112,10 @@ app.get('/', (req, res) => res.send(`
                     body: JSON.stringify({ image: p.src })
                 });
                 const d = await r.json();
-                res.innerHTML = "<b>التشخيص:</b><br>" + d.text;
+                res.innerHTML = "<strong>التقرير الزراعي:</strong><br><br>" + d.text;
                 res.style.display='block';
-            } catch(e) { alert("حدث خطأ في الاتصال"); }
+                res.scrollIntoView({ behavior: 'smooth' });
+            } catch(e) { alert("خطأ في الاتصال بالسيرفر"); }
             document.getElementById('ld').style.display='none';
             anBtn.disabled = false;
         }
@@ -107,12 +129,12 @@ app.post('/analyze', async (req, res) => {
         const response = await sambanova.chat.completions.create({
             model: "Llama-4-Maverick-17B-128E-Instruct",
             messages: [{ role: "user", content: [
-                { type: "text", text: "شخص حالة هذا النبات بالعربية بوضوح." },
+                { type: "text", text: "أنت خبير زراعي. حلل صورة النبات وشخص الحالة بالعربية بأسلوب بسيط ومباشر." },
                 { type: "image_url", image_url: { url: req.body.image } }
             ]}]
         });
         res.json({ text: response.choices[0].message.content });
-    } catch (e) { res.status(500).json({ text: e.message }); }
+    } catch (e) { res.status(500).json({ text: "فشل التحليل: " + e.message }); }
 });
 
-app.listen(3000);
+app.listen(3000, () => console.log('التطبيق يعمل! شكراً لفريق التطوير بقيادة أحمد ماجد.'));
