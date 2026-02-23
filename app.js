@@ -17,7 +17,7 @@ app.get('/', (req, res) => res.send(`
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>طبيب النبات - فريق أحمد ماجد</title>
     <style>
-        :root { --primary: #10b981; --bg: #0f172a; --danger: #ef4444; }
+        :root { --primary: #10b981; --bg: #0f172a; --danger: #ef4444; --warning: #f59e0b; }
         body { font-family: system-ui, sans-serif; background: var(--bg); color: white; text-align: center; padding: 20px; margin: 0; }
         .box { background: #1e293b; padding: 20px; border-radius: 24px; max-width: 500px; margin: auto; border: 1px solid #334155; }
         .preview-box { width: 100%; aspect-ratio: 4/3; background: #000; border-radius: 15px; overflow: hidden; margin: 15px 0; position: relative; }
@@ -25,6 +25,7 @@ app.get('/', (req, res) => res.send(`
         button { border: none; padding: 12px 18px; border-radius: 10px; cursor: pointer; margin: 5px; font-weight: bold; transition: 0.3s; color: white; }
         .btn-cam { background: var(--primary); }
         .btn-stop { background: var(--danger); display: none; }
+        .btn-flash { background: var(--warning); display: none; color: #000; }
         .btn-upload { background: #475569; width: 80%; margin-top: 10px; }
         #res { margin-top: 20px; text-align: right; background: #0f172a; padding: 15px; border-radius: 15px; display: none; border-right: 5px solid var(--primary); line-height: 1.8; }
         .credits { margin-top: 30px; padding: 15px; border-top: 1px solid #334155; font-size: 0.85rem; color: #94a3b8; }
@@ -40,13 +41,14 @@ app.get('/', (req, res) => res.send(`
         <div class="preview-box">
             <video id="v" autoplay playsinline style="display:none;"></video>
             <img id="p" style="display:none;">
-            <div id="placeholder" style="padding-top: 25%; color: #444;">الكاميرا متوقفة</div>
+            <div id="ph" style="padding-top: 25%; color: #444;">الكاميرا متوقفة</div>
         </div>
 
-        <div>
-            <button id="startBtn" class="btn-cam" onclick="startCam()">📸 تشغيل الكاميرا</button>
-            <button id="stopBtn" class="btn-stop" onclick="stopCam()">🛑 إيقاف الكاميرا</button>
-            <button id="capBtn" class="btn-cam" onclick="takePic()" style="display:none; background:#f59e0b;">🎯 التقاط</button>
+        <div id="controls">
+            <button id="sBtn" class="btn-cam" onclick="startCam()">📸 تشغيل الكاميرا</button>
+            <button id="fBtn" class="btn-flash" onclick="toggleFlash()">🔦 كشاف</button>
+            <button id="cBtn" class="btn-cam" onclick="takePic()" style="display:none; background: var(--warning); color: black;">🎯 التقاط</button>
+            <button id="tBtn" class="btn-stop" onclick="stopCam()">🛑 إغلاق</button>
         </div>
         
         <input type="file" id="f" accept="image/*" style="display:none;" onchange="loadFile(event)">
@@ -67,26 +69,46 @@ app.get('/', (req, res) => res.send(`
     </div>
 
     <script>
-        let stream;
+        let stream, track, flashOn = false;
         const v=document.getElementById('v'), p=document.getElementById('p'), res=document.getElementById('res'), 
-              anBtn=document.getElementById('anBtn'), sBtn=document.getElementById('startBtn'), 
-              tBtn=document.getElementById('stopBtn'), cBtn=document.getElementById('capBtn'),
-              ph=document.getElementById('placeholder');
+              anBtn=document.getElementById('anBtn'), sBtn=document.getElementById('sBtn'), 
+              tBtn=document.getElementById('tBtn'), cBtn=document.getElementById('cBtn'),
+              fBtn=document.getElementById('fBtn'), ph=document.getElementById('ph');
 
         async function startCam() {
             try {
-                stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: "environment" } 
+                });
                 v.srcObject = stream;
+                track = stream.getVideoTracks()[0];
+                
                 v.style.display='block'; p.style.display='none'; ph.style.display='none';
-                sBtn.style.display='none'; tBtn.style.display='inline-block'; cBtn.style.display='inline-block';
+                sBtn.style.display='none'; tBtn.style.display='inline-block'; 
+                cBtn.style.display='inline-block';
+
+                // فحص دعم الكشاف
+                const caps = track.getCapabilities();
+                if (caps.torch) fBtn.style.display = 'inline-block';
+
             } catch(e) { alert("يرجى تفعيل صلاحية الكاميرا"); }
+        }
+
+        async function toggleFlash() {
+            if (!track) return;
+            flashOn = !flashOn;
+            try {
+                await track.applyConstraints({ advanced: [{ torch: flashOn }] });
+                fBtn.innerText = flashOn ? "📴 إطفاء" : "🔦 كشاف";
+            } catch (e) { console.error("الكشاف غير مدعوم في هذا المتصفح"); }
         }
 
         function stopCam() {
             if(stream) {
-                stream.getTracks().forEach(track => track.stop());
+                stream.getTracks().forEach(t => t.stop());
                 v.style.display='none'; ph.style.display='block';
-                sBtn.style.display='inline-block'; tBtn.style.display='none'; cBtn.style.display='none';
+                sBtn.style.display='inline-block'; tBtn.style.display='none'; 
+                cBtn.style.display='none'; fBtn.style.display='none';
             }
         }
 
@@ -98,10 +120,10 @@ app.get('/', (req, res) => res.send(`
             stopCam();
         }
 
-        function loadFile(event) {
-            const reader = new FileReader();
-            reader.onload = () => { showPreview(reader.result); stopCam(); };
-            reader.readAsDataURL(event.target.files[0]);
+        function loadFile(e) {
+            const r = new FileReader();
+            r.onload = () => { showPreview(r.result); stopCam(); };
+            r.readAsDataURL(e.target.files[0]);
         }
 
         function showPreview(src) {
@@ -118,7 +140,7 @@ app.get('/', (req, res) => res.send(`
                     body: JSON.stringify({ image: p.src })
                 });
                 const d = await r.json();
-                res.innerHTML = "<b>النتيجة:</b><br>" + d.text;
+                res.innerHTML = "<b>التقرير الزراعي:</b><br>" + d.text;
                 res.style.display='block';
             } catch(e) { alert("خطأ في الاتصال"); }
             document.getElementById('ld').style.display='none'; anBtn.disabled = false;
@@ -133,7 +155,7 @@ app.post('/analyze', async (req, res) => {
         const response = await sambanova.chat.completions.create({
             model: "Llama-4-Maverick-17B-128E-Instruct",
             messages: [{ role: "user", content: [
-                { type: "text", text: "شخص حالة النبات بالعربية باختصار." },
+                { type: "text", text: "أنت خبير زراعي. حلل صورة النبات وشخص الحالة بالعربية بأسلوب بسيط." },
                 { type: "image_url", image_url: { url: req.body.image } }
             ]}]
         });
