@@ -1,13 +1,6 @@
 {
-  "name": "sambanova-plant-doctor",
-  "version": "1.0.1",
-  "main": "app.js",
+  "name": "plant-analyzer",
   "type": "module",
-  "scripts": {
-    "start": "node app.js"
-  },
-  "dependencies": {
-    "express": "^4.18.2",
-    "openai": "^4.0.0"
-  }
+  "scripts": { "start": "node app.js" },
+  "dependencies": { "express": "^4.18.2", "openai": "^4.0.0" }
 }
