@@ -3,7 +3,7 @@ import OpenAI from "openai";
 
 const app = express();
 const sambanova = new OpenAI({
-    apiKey: process.env.SAMBANOVA_API_KEY || "YOUR_KEY",
+    apiKey: process.env.SAMBANOVA_API_KEY,
     baseURL: "https://api.sambanova.ai/v1",
 });
 
@@ -15,13 +15,12 @@ app.get('/', (req, res) => res.send(`
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>محلل النبات</title>
+    <title>طبيب النبات</title>
     <style>
         body { font-family: sans-serif; background: #111; color: white; text-align: center; padding: 20px; }
-        .box { background: #222; padding: 20px; border-radius: 20px; max-width: 500px; margin: auto; border: 1px solid #444; }
-        .cam-wrap { position: relative; width: 100%; aspect-ratio: 4/3; background: #000; border-radius: 10px; overflow: hidden; margin: 15px 0; }
+        .box { background: #222; padding: 20px; border-radius: 20px; max-width: 500px; margin: auto; }
+        .preview-box { width: 100%; aspect-ratio: 4/3; background: #000; border-radius: 10px; overflow: hidden; margin: 15px 0; }
         video, img { width: 100%; height: 100%; object-fit: cover; }
-        .overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 60%; height: 60%; border: 2px dashed #10b981; border-radius: 10px; pointer-events: none; }
         button { background: #10b981; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; margin: 5px; font-weight: bold; }
         #res { margin-top: 20px; text-align: right; background: #333; padding: 15px; border-radius: 10px; display: none; }
     </style>
@@ -29,56 +28,74 @@ app.get('/', (req, res) => res.send(`
 <body>
     <div class="box">
         <h2>🌿 طبيب النبات</h2>
-        <div class="cam-wrap">
+        
+        <div class="preview-box">
             <video id="v" autoplay playsinline></video>
-            <div id="ov" class="overlay"></div>
             <img id="p" style="display:none;">
         </div>
-        <button onclick="startCam()">فتح الكاميرا</button>
-        <button id="fBtn" onclick="toggleFlash()" style="display:none;">🔦 كشاف</button>
-        <button onclick="takePic()">التقاط</button>
-        <button id="anBtn" onclick="analyze()" style="display:none; background:#3b82f6;">تحليل الآن</button>
-        <div id="ld" style="display:none;">جاري الفحص...</div>
+
+        <div style="margin-bottom: 10px;">
+            <button onclick="startCam()">تشغيل الكاميرا</button>
+            <button onclick="takePic()">التقاط صورة</button>
+        </div>
+        
+        <div style="border-top: 1px solid #444; padding-top: 10px;">
+            <p>أو اختر صورة من جهازك:</p>
+            <input type="file" id="f" accept="image/*" style="display:none;" onchange="loadFile(event)">
+            <button onclick="document.getElementById('f').click()" style="background:#4b5563;">📁 اختيار صورة</button>
+        </div>
+
+        <button id="anBtn" onclick="analyze()" style="display:none; background:#3b82f6; width:100%; margin-top:20px;">تحليل الإصابة الآن</button>
+        <div id="ld" style="display:none; margin-top:10px;">جاري الفحص...</div>
         <div id="res"></div>
     </div>
 
     <script>
-        let stream, track, flash = false;
-        const v=document.getElementById('v'), p=document.getElementById('p'), res=document.getElementById('res');
+        let stream;
+        const v=document.getElementById('v'), p=document.getElementById('p'), res=document.getElementById('res'), anBtn=document.getElementById('anBtn');
 
         async function startCam() {
             stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
             v.srcObject = stream;
-            track = stream.getVideoTracks()[0];
-            if (track.getCapabilities().torch) document.getElementById('fBtn').style.display='inline';
-        }
-
-        async function toggleFlash() {
-            flash = !flash;
-            await track.applyConstraints({ advanced: [{ torch: flash }] });
+            v.style.display='block'; p.style.display='none';
         }
 
         function takePic() {
             const c = document.createElement('canvas');
             c.width = v.videoWidth; c.height = v.videoHeight;
             c.getContext('2d').drawImage(v, 0, 0);
-            p.src = c.toDataURL('image/jpeg');
+            showPreview(c.toDataURL('image/jpeg'));
+            if(stream) stream.getTracks().forEach(t => t.stop());
+        }
+
+        function loadFile(event) {
+            const reader = new FileReader();
+            reader.onload = () => showPreview(reader.result);
+            reader.readAsDataURL(event.target.files[0]);
+        }
+
+        function showPreview(src) {
+            p.src = src;
             p.style.display='block'; v.style.display='none';
-            document.getElementById('ov').style.display='none';
-            document.getElementById('anBtn').style.display='inline-block';
-            stream.getTracks().forEach(t => t.stop());
+            anBtn.style.display='block';
+            res.style.display='none';
         }
 
         async function analyze() {
             document.getElementById('ld').style.display='block';
-            const r = await fetch('/analyze', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ image: p.src })
-            });
-            const d = await r.json();
-            res.innerHTML = d.text; res.style.display='block';
+            anBtn.disabled = true;
+            try {
+                const r = await fetch('/analyze', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ image: p.src })
+                });
+                const d = await r.json();
+                res.innerHTML = "<b>التشخيص:</b><br>" + d.text;
+                res.style.display='block';
+            } catch(e) { alert("حدث خطأ في الاتصال"); }
             document.getElementById('ld').style.display='none';
+            anBtn.disabled = false;
         }
     </script>
 </body>
@@ -86,14 +103,16 @@ app.get('/', (req, res) => res.send(`
 `));
 
 app.post('/analyze', async (req, res) => {
-    const response = await sambanova.chat.completions.create({
-        model: "Llama-4-Maverick-17B-128E-Instruct",
-        messages: [{ role: "user", content: [
-            { type: "text", text: "شخص حالة النبات في الصورة بالعربية." },
-            { type: "image_url", image_url: { url: req.body.image } }
-        ]}]
-    });
-    res.json({ text: response.choices[0].message.content });
+    try {
+        const response = await sambanova.chat.completions.create({
+            model: "Llama-4-Maverick-17B-128E-Instruct",
+            messages: [{ role: "user", content: [
+                { type: "text", text: "شخص حالة هذا النبات بالعربية بوضوح." },
+                { type: "image_url", image_url: { url: req.body.image } }
+            ]}]
+        });
+        res.json({ text: response.choices[0].message.content });
+    } catch (e) { res.status(500).json({ text: e.message }); }
 });
 
 app.listen(3000);
