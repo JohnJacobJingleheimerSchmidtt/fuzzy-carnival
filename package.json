@@ -1,14 +1,10 @@
 {
-  "name": "plant-analyzer-gpt",
+  "name": "gemini-plant-analyzer",
   "version": "1.0.0",
-  "description": "Plant disease analyzer using GPT-4o",
   "main": "app.js",
   "type": "module",
-  "scripts": {
-    "start": "node app.js"
-  },
   "dependencies": {
     "express": "^4.18.2",
-    "openai": "^4.0.0"
+    "@google/generative-ai": "^0.21.0"
   }
 }
