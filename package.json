@@ -1,6 +1,6 @@
 {
-  "name": "plant-analyzer-sambanova",
-  "version": "1.0.0",
+  "name": "sambanova-plant-doctor",
+  "version": "1.0.1",
   "main": "app.js",
   "type": "module",
   "scripts": {
