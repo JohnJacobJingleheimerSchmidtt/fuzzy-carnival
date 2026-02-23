@@ -4,12 +4,17 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// استبدل المفتاح بمفتاحك الخاص
-const API_KEY = "AIzaSyBa16o1Jv42FfBk8axjnmaTsmI1smKHSfY"; 
+// 🔐 جلب المفتاح من Environment Variables
+const API_KEY = process.env.GEMINI_API_KEY;
+
+if (!API_KEY) {
+    console.error("AIzaSyBa16o1Jv42FfBk8axjnmaTsmI1smKHSfY");
+    process.exit(1);
+}
+
 const genAI = new GoogleGenerativeAI(API_KEY);
 
-// إعداد النموذج مع تعليمات النظام الصحيحة للإصدار v1
-const model = genAI.getGenerativeModel({ 
+const model = genAI.getGenerativeModel({
     model: "gemini-1.5-flash",
     system_instruction: "أنت خبير زراعي متخصص. عند استلام صورة، شخص حالة النبات وقدم نصائح دقيقة بالعربية."
 });
@@ -41,21 +46,37 @@ const htmlContent = `
         <div id="result"></div>
     </div>
     <script>
-        const f=document.getElementById('f'), p=document.getElementById('p'), btn=document.getElementById('btn'), res=document.getElementById('result');
+        const f=document.getElementById('f'), 
+              p=document.getElementById('p'), 
+              btn=document.getElementById('btn'), 
+              res=document.getElementById('result');
+
         f.onchange = (e) => {
-            const r=new FileReader(); r.onload=()=>{ p.src=r.result; p.style.display='block'; btn.style.display='block'; }; r.readAsDataURL(e.target.files[0]);
+            const r=new FileReader();
+            r.onload=()=>{
+                p.src=r.result;
+                p.style.display='block';
+                btn.style.display='block';
+            };
+            r.readAsDataURL(e.target.files[0]);
         };
+
         btn.onclick = async () => {
-            btn.innerText='جاري التحليل...'; btn.disabled=true;
+            btn.innerText='جاري التحليل...';
+            btn.disabled=true;
+
             const response = await fetch('/api/analyze', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ image: p.src })
             });
+
             const data = await response.json();
             res.innerText = data.analysis;
             res.style.display = 'block';
-            btn.innerText='تحليل الآن'; btn.disabled=false;
+
+            btn.innerText='تحليل الآن';
+            btn.disabled=false;
         };
     </script>
 </body>
@@ -68,17 +89,24 @@ app.post('/api/analyze', async (req, res) => {
     try {
         const { image } = req.body;
         const base64Data = image.split(",")[1];
-        
-        // إرسال الصورة كبيانات مضمنة (Inline Data)
+
         const result = await model.generateContent([
-            { inlineData: { data: base64Data, mimeType: "image/jpeg" } },
+            {
+                inlineData: {
+                    data: base64Data,
+                    mimeType: "image/jpeg"
+                }
+            },
             { text: "حلل هذه الصورة زراعياً." }
         ]);
-        
+
         res.json({ analysis: result.response.text() });
+
     } catch (error) {
-        res.status(500).json({ analysis: "خطأ: " + error.message });
+        res.status(500).json({ 
+            analysis: "حدث خطأ أثناء التحليل: " + error.message 
+        });
     }
 });
 
-app.listen(PORT, () => console.log('جاهز على المنفذ ' + PORT));
+app.listen(PORT, () => console.log("✅ السيرفر يعمل على المنفذ " + PORT));
