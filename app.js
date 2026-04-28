@@ -1,11 +1,15 @@
 import express from 'express';
 import OpenAI from "openai";
+import fetch from 'node-fetch';
 
 const app = express();
 const sambanova = new OpenAI({
-    apiKey: process.env.SAMBANOVA_API_KEY, // تأكد من وضع مفتاحك هنا أو في البيئة
+    apiKey: process.env.SAMBANOVA_API_KEY,
     baseURL: "https://api.sambanova.ai/v1",
 });
+
+// مفتاح API لجودة الهواء (OpenWeatherMap)
+const WEATHER_API_KEY = process.env.WEATHER_API_KEY || "75cc65105421a699a2aad332d7188f96";
 
 app.use(express.json({ limit: '50mb' }));
 
@@ -15,107 +19,102 @@ app.get('/', (req, res) => res.send(`
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SambaNova Plant & Harmony</title>
+    <title>SambaNova Plant & Air Monitor</title>
     <style>
-        :root { --primary: #10b981; --bg: #0f172a; --card: #1e293b; --accent: #3b82f6; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: white; margin: 0; padding: 20px; }
-        
+        :root { --primary: #10b981; --bg: #0f172a; --card: #1e293b; --accent: #3b82f6; --warning: #f59e0b; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: white; margin: 0; padding: 20px; }
         .container { max-width: 500px; margin: auto; }
-        .header { text-align: center; margin-bottom: 20px; }
-        .header h1 { color: var(--primary); margin: 0; font-size: 1.8rem; }
         
-        /* نظام التبويبات Navigation */
-        .nav-tabs { display: flex; background: var(--card); border-radius: 12px; padding: 5px; margin-bottom: 20px; }
-        .tab { flex: 1; padding: 10px; text-align: center; cursor: pointer; border-radius: 8px; transition: 0.3s; font-weight: bold; }
+        /* التبويبات Navigation */
+        .nav-tabs { display: flex; background: var(--card); border-radius: 15px; padding: 5px; margin-bottom: 20px; border: 1px solid #334155; }
+        .tab { flex: 1; padding: 12px; text-align: center; cursor: pointer; border-radius: 10px; font-weight: bold; transition: 0.3s; }
         .tab.active { background: var(--primary); color: white; }
-
-        .page { display: none; animation: fadeIn 0.5s; }
+        
+        .page { display: none; animation: fadeIn 0.4s ease; }
         .page.active { display: block; }
 
-        /* كروت الإحصائيات (Harmony Page) */
-        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
-        .stat-card { background: var(--card); padding: 20px; border-radius: 15px; border: 1px solid #334155; text-align: center; }
-        .stat-value { font-size: 1.6rem; font-weight: bold; color: var(--primary); display: block; margin-bottom: 5px; }
-        .stat-label { font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; }
+        /* البطاقات Stats Cards */
+        .stat-card { background: var(--card); padding: 20px; border-radius: 18px; border: 1px solid #334155; margin-bottom: 15px; text-align: center; }
+        .stat-value { font-size: 1.8rem; font-weight: bold; color: var(--primary); display: block; }
+        .stat-label { font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
 
-        /* صندوق الكاميرا (Analyzer Page) */
-        .preview-box { width: 100%; aspect-ratio: 4/3; background: #000; border-radius: 15px; overflow: hidden; position: relative; margin-bottom: 15px; border: 2px solid #334155; }
+        /* الكاميرا Analyzer */
+        .preview-box { width: 100%; aspect-ratio: 4/3; background: #000; border-radius: 20px; overflow: hidden; position: relative; margin-bottom: 15px; border: 2px solid #334155; }
         video, img { width: 100%; height: 100%; object-fit: cover; }
         
-        button { border: none; padding: 12px; border-radius: 10px; cursor: pointer; font-weight: bold; transition: 0.2s; color: white; width: 100%; margin-bottom: 10px; }
+        button { border: none; padding: 14px; border-radius: 12px; cursor: pointer; font-weight: bold; width: 100%; margin-bottom: 10px; color: white; transition: 0.2s; }
         .btn-main { background: var(--primary); }
-        .btn-upload { background: #475569; }
+        .btn-main:active { transform: scale(0.98); }
+        .btn-sec { background: var(--accent); }
         .btn-danger { background: #ef4444; }
 
-        #res { background: var(--card); padding: 15px; border-radius: 15px; margin-top: 15px; text-align: right; border-right: 5px solid var(--primary); display: none; }
+        #res { background: var(--card); padding: 15px; border-radius: 15px; margin-top: 15px; text-align: right; border-right: 5px solid var(--primary); display: none; font-size: 0.95rem; line-height: 1.6; }
         
-        .credits { margin-top: 40px; padding: 15px; border-top: 1px solid #334155; font-size: 0.8rem; color: #94a3b8; text-align: center; }
-        
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .credits { margin-top: 40px; padding: 20px; border-top: 1px solid #334155; font-size: 0.8rem; color: #94a3b8; text-align: center; }
+        .team-names { color: var(--primary); font-weight: bold; margin-top: 5px; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>🌿 SambaNova Plant Doctor</h1>
-            <p style="font-size: 0.8rem; color: #94a3b8;">إشراف: أحمد ماجد</p>
+        <div style="text-align:center; margin-bottom: 25px;">
+            <h1 style="color: var(--primary); margin:0;">🌿 SambaNova AI</h1>
+            <p style="color: #94a3b8; font-size: 0.9rem;">Environment & Plant Health Monitor</p>
         </div>
 
         <div class="nav-tabs">
-            <div class="tab active" onclick="showPage('analyzer', this)">🔬 محلل النبات</div>
-            <div class="tab" onclick="showPage('harmony', this)">✨ جودة الحياة</div>
+            <div class="tab active" onclick="showPage('analyzer', this)">🔬 المحلل</div>
+            <div class="tab" onclick="showPage('harmony', this)">✨ جودة الهواء</div>
         </div>
 
         <div id="analyzer" class="page active">
             <div class="preview-box">
                 <video id="v" autoplay playsinline style="display:none;"></video>
                 <img id="p" style="display:none;">
-                <div id="ph" style="color:#444;">📸 الكاميرا جاهزة للفحص</div>
+                <div id="ph" style="color: #475569; font-weight: bold;">📸 جاهز للفحص الضوئي</div>
             </div>
             
-            <div id="camControls">
-                <button class="btn-main" id="startBtn" onclick="startCam()">فتح الكاميرا</button>
-                <button class="btn-main" id="capBtn" onclick="takePic()" style="display:none; background:#f59e0b;">🎯 التقاط صورة</button>
-                <button class="btn-danger" id="stopBtn" onclick="stopCam()" style="display:none;">إغلاق الكاميرا</button>
-            </div>
-
+            <button class="btn-main" id="startBtn" onclick="startCam()">تشغيل الكاميرا</button>
+            <button class="btn-main" id="capBtn" onclick="takePic()" style="display:none; background: var(--warning); color: black;">🎯 التقاط الصورة</button>
+            <button class="btn-danger" id="stopBtn" onclick="stopCam()" style="display:none;">إيقاف الكاميرا</button>
+            
             <input type="file" id="fileIn" accept="image/*" style="display:none;" onchange="loadFile(event)">
-            <button class="btn-upload" onclick="document.getElementById('fileIn').click()">📁 رفع صورة من الجهاز</button>
+            <button class="btn-sec" onclick="document.getElementById('fileIn').click()">📁 رفع صورة من المعرض</button>
             
-            <button id="anBtn" onclick="analyze()" style="display:none; background:var(--accent);">بدء تحليل الذكاء الاصطناعي</button>
-            <div id="ld" style="display:none; color:var(--primary); margin:10px;">جاري الفحص...</div>
+            <button id="anBtn" onclick="analyze()" style="display:none; background: var(--accent);">بدء تحليل SambaNova</button>
+            <div id="ld" style="display:none; color: var(--primary); margin: 10px; font-weight:bold;">جاري الاتصال بالسحابة...</div>
             <div id="res"></div>
         </div>
 
         <div id="harmony" class="page">
+            <button class="btn-sec" onclick="getRealAirQuality()">📍 تحديث جودة الهواء في موقعي</button>
+            
             <div class="stat-card">
-                <p>عدد النباتات في غرفتك</p>
-                <input type="number" id="pCount" value="0" min="0" oninput="updateHarmony()" style="width: 80px; padding: 10px; font-size: 1.2rem; border-radius: 8px; border: none; text-align: center;">
+                <span class="stat-label">جودة الهواء الخارجية (Real-time)</span>
+                <span class="stat-value" id="localAir">--</span>
+                <span id="localDesc" style="color: #94a3b8;">اضغط للتحديث بناءً على موقعك</span>
             </div>
 
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <span class="stat-value" id="airVal">0%</span>
-                    <span class="stat-label">جودة الهواء</span>
-                </div>
-                <div class="stat-card">
-                    <span class="stat-value" id="moodVal">😐</span>
-                    <span class="stat-label">الحالة المزاجية</span>
-                </div>
-                <div class="stat-card" style="grid-column: span 2;">
-                    <span class="stat-value" id="o2Val" style="color: #60a5fa;">0.0 L/h</span>
-                    <span class="stat-label">إنتاج الأكسجين المتوقع</span>
+            <div class="stat-card">
+                <p>عدد النباتات في غرفتك</p>
+                <input type="number" id="pCount" value="0" min="0" oninput="updateInternalHarmony()" style="width: 80px; padding: 12px; font-size: 1.2rem; border-radius: 10px; border: none; text-align: center; background: #0f172a; color: white;">
+                <div class="stats-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px;">
+                    <div>
+                        <span class="stat-label">المزاج</span>
+                        <span class="stat-value" id="moodVal" style="font-size: 1.4rem;">😐</span>
+                    </div>
+                    <div>
+                        <span class="stat-label">تحسين O2</span>
+                        <span class="stat-value" id="o2Val" style="font-size: 1.4rem; color: #3b82f6;">0%</span>
+                    </div>
                 </div>
             </div>
-            
-            <p style="font-size: 0.85rem; color: #94a3b8; margin-top: 20px;">
-                * هذه البيانات تقديرية بناءً على عدد النباتات وتأثيرها البيئي في الأماكن المغلقة.
-            </p>
         </div>
 
         <div class="credits">
-            <strong>فريق العمل</strong><br>
-            أحمد ماجد | محمد حسن | علي سعود | أحمد راشد
+            <span>تم التطوير بواسطة فريق العمل:</span><br>
+            <div class="team-names">أحمد ماجد | محمد حسن | علي سعود | أحمد راشد</div>
         </div>
     </div>
 
@@ -140,7 +139,7 @@ app.get('/', (req, res) => res.send(`
                 document.getElementById('startBtn').style.display='none';
                 document.getElementById('capBtn').style.display='block';
                 document.getElementById('stopBtn').style.display='block';
-            } catch(e) { alert("يرجى تفعيل الكاميرا"); }
+            } catch(e) { alert("يرجى تفعيل صلاحية الكاميرا"); }
         }
 
         function stopCam() {
@@ -170,23 +169,38 @@ app.get('/', (req, res) => res.send(`
             anBtn.style.display='block'; res.style.display='none';
         }
 
-        function updateHarmony() {
-            const count = document.getElementById('pCount').value || 0;
-            const air = Math.min(count * 20, 100);
-            const o2 = (count * 0.5).toFixed(1);
-            let mood = "😐";
-            if(count >= 5) mood = "🤩 السعادة القصوى";
-            else if(count >= 3) mood = "😊 إيجابي جداً";
-            else if(count >= 1) mood = "🙂 مريح";
+        // ميزة جودة الهواء الحقيقية
+        async function getRealAirQuality() {
+            document.getElementById('localDesc').innerText = "📍 جاري تحديد موقعك...";
+            if (!navigator.geolocation) return alert("الموقع الجغرافي غير مدعوم");
+            
+            navigator.geolocation.getCurrentPosition(async (pos) => {
+                try {
+                    const response = await fetch(\`/api/air?lat=\${pos.coords.latitude}&lon=\${pos.coords.longitude}\`);
+                    const data = await response.json();
+                    const levels = ["ممتاز ✨", "جيد 👍", "متوسط ⚠️", "ضعيف 😷", "سيء جداً 🚨"];
+                    document.getElementById('localAir').innerText = "Level " + data.aqi;
+                    document.getElementById('localDesc').innerText = levels[data.aqi - 1];
+                } catch(e) { 
+                    document.getElementById('localDesc').innerText = "فشل جلب البيانات";
+                }
+            });
+        }
 
-            document.getElementById('airVal').innerText = air + "%";
-            document.getElementById('o2Val').innerText = o2 + " L/h";
+        function updateInternalHarmony() {
+            const count = document.getElementById('pCount').value || 0;
+            const o2 = Math.min(count * 15, 100);
+            let mood = "😐";
+            if(count >= 5) mood = "🤩";
+            else if(count >= 3) mood = "😊";
+            else if(count >= 1) mood = "🙂";
+            
+            document.getElementById('o2Val').innerText = o2 + "%";
             document.getElementById('moodVal').innerText = mood;
         }
 
         async function analyze() {
-            document.getElementById('ld').style.display='block';
-            anBtn.disabled = true;
+            document.getElementById('ld').style.display='block'; anBtn.disabled = true;
             try {
                 const r = await fetch('/analyze', {
                     method: 'POST',
@@ -194,28 +208,38 @@ app.get('/', (req, res) => res.send(`
                     body: JSON.stringify({ image: p.src })
                 });
                 const d = await r.json();
-                res.innerHTML = "<b>تشخيص SambaNova:</b><br>" + d.text;
+                res.innerHTML = "<b>تشخيص SambaNova AI:</b><br>" + d.text;
                 res.style.display='block';
-            } catch(e) { alert("خطأ في الاتصال"); }
-            document.getElementById('ld').style.display='none';
-            anBtn.disabled = false;
+                res.scrollIntoView({ behavior: 'smooth' });
+            } catch(e) { alert("خطأ في الاتصال بالسيرفر"); }
+            document.getElementById('ld').style.display='none'; anBtn.disabled = false;
         }
     </script>
 </body>
 </html>
 `));
 
+// الـ Route الخاص بجلب جودة الهواء (Backend)
+app.get('/api/air', async (req, res) => {
+    const { lat, lon } = req.query;
+    try {
+        const response = await fetch(`http://api.openweathermap.org/data/2.5/air_pollution?lat=${lat}&lon=${lon}&appid=${WEATHER_API_KEY}`);
+        const data = await response.json();
+        res.json({ aqi: data.list[0].main.aqi });
+    } catch (e) { res.status(500).json({ error: "API Error" }); }
+});
+
 app.post('/analyze', async (req, res) => {
     try {
         const response = await sambanova.chat.completions.create({
             model: "Llama-4-Maverick-17B-128E-Instruct",
             messages: [{ role: "user", content: [
-                { type: "text", text: "شخص حالة هذا النبات بالعربية بوضوح واختصار." },
+                { type: "text", text: "أنت خبير نباتات. حلل الصورة وشخص الحالة بالعربية باختصار." },
                 { type: "image_url", image_url: { url: req.body.image } }
             ]}]
         });
         res.json({ text: response.choices[0].message.content });
-    } catch (e) { res.status(500).json({ text: "فشل التحليل" }); }
+    } catch (e) { res.status(500).json({ text: "خطأ في التحليل" }); }
 });
 
-app.listen(3000);
+app.listen(3000, () => console.log('التطبيق يعمل على المنفذ 3000'));
