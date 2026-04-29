@@ -3,16 +3,19 @@ import OpenAI from "openai";
 import fetch from 'node-fetch';
 
 const app = express();
+
+// --- 1. API CONFIGURATION ---
 const sambanova = new OpenAI({
-    apiKey: process.env.SAMBANOVA_API_KEY,
+    apiKey: "YOUR_SAMBANOVA_API_KEY", // Get from sambanova.ai
     baseURL: "https://api.sambanova.ai/v1",
 });
 
-const WAQI_TOKEN = process.env.WAQI_TOKEN || "f1c59ef351d2e4cf906174a4a46dbd3633f4a2ab";
-const WEATHER_API_KEY = process.env.WEATHER_API_KEY || "75cc65105421a699a2aad332d7188f96";
+const WAQI_TOKEN = "f1c59ef351d2e4cf906174a4a46dbd3633f4a2ab"; // Get from aqicn.org
+const WEATHER_API_KEY = "75cc65105421a699a2aad332d7188f96"; // Get from openweathermap.org
 
 app.use(express.json({ limit: '50mb' }));
 
+// --- 2. FRONTEND (HTML/CSS/JS) ---
 app.get('/', (req, res) => res.send(`
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -25,36 +28,29 @@ app.get('/', (req, res) => res.send(`
         body { font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
         .container { max-width: 500px; margin: auto; }
 
-        /* Header with Real-Time Location */
         .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
         .aura-brand { display: flex; align-items: center; gap: 8px; }
         .brand-dot { width: 12px; height: 12px; border: 2.5px solid var(--primary); border-radius: 50%; }
         .loc-badge { display: flex; align-items: center; gap: 6px; background: #e2e8f0; padding: 5px 12px; border-radius: 20px; font-size: 0.7rem; font-weight: 800; color: var(--accent); }
         .pulse { width: 7px; height: 7px; background: #ef4444; border-radius: 50%; animation: blink 1.5s infinite; }
 
-        /* Aura Professional Card */
         .aura-card { background: var(--card); border-radius: 32px; padding: 40px 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.04); border: 1px solid #e2e8f0; text-align: center; margin-bottom: 20px; }
-        .aqi-display { display: flex; align-items: baseline; justify-content: center; margin-bottom: 5px; }
         .aqi-num { font-size: 8rem; font-weight: 300; margin: 0; letter-spacing: -5px; line-height: 1; }
-        .aqi-unit { text-align: left; margin-right: 15px; }
         .aqi-bar { height: 6px; background: linear-gradient(to right, #009966, #ffde33, #ff9933, #cc0033); border-radius: 10px; margin: 30px 0 10px 0; }
-        .bar-labels { display: flex; justify-content: space-between; font-size: 0.7rem; color: #94a3b8; }
-
-        /* Tabs */
+        
         .nav-tabs { display: flex; gap: 10px; margin-bottom: 25px; background: #e2e8f0; padding: 5px; border-radius: 50px; }
         .tab { flex: 1; padding: 12px; text-align: center; cursor: pointer; border-radius: 50px; font-size: 0.8rem; font-weight: bold; color: var(--accent); transition: 0.3s; }
         .tab.active { background: var(--text); color: white; }
 
-        /* Camera Fixes */
+        /* FIXED: Back camera orientation */
         .scanner-view { width: 100%; aspect-ratio: 1; background: #000; border-radius: 28px; overflow: hidden; position: relative; border: 1px solid #cbd5e1; }
-        video, img { width: 100%; height: 100%; object-fit: cover; transform: scaleX(1); } /* scaleX(1) for back camera */
+        video, img { width: 100%; height: 100%; object-fit: cover; transform: scaleX(1); } 
         
         .btn { border: none; padding: 16px; border-radius: 18px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 15px; }
         .btn-dark { background: var(--text); color: white; }
         .btn-outline { background: white; border: 1px solid #e2e8f0; color: var(--text); }
 
         #res-box { background: #f1f5f9; padding: 20px; border-radius: 20px; margin-top: 15px; display: none; text-align: right; line-height: 1.6; border-right: 5px solid var(--primary); }
-
         @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
         .page { display: none; }
         .page.active { display: block; }
@@ -63,18 +59,12 @@ app.get('/', (req, res) => res.send(`
 <body>
     <div class="container">
         <div class="header-top">
-            <div class="aura-brand">
-                <span class="brand-dot"></span>
-                <div style="font-weight: 900; font-size: 1.2rem;">Aura</div>
-            </div>
-            <div class="loc-badge">
-                <span class="pulse"></span>
-                <span id="locName">SCANNING GPS...</span>
-            </div>
+            <div class="aura-brand"><span class="brand-dot"></span><div style="font-weight:900; font-size:1.2rem;">Aura</div></div>
+            <div class="loc-badge"><span class="pulse"></span><span id="locName">SCANNING GPS...</span></div>
         </div>
 
         <div style="margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-end;">
-            <h2 id="greet" style="font-weight: 400; font-size: 1.6rem; margin: 0; max-width: 65%;">Syncing environment...</h2>
+            <h2 id="greet" style="font-weight: 400; font-size: 1.6rem; margin: 0; max-width: 65%;">Syncing...</h2>
             <div style="text-align: left; font-size: 0.85rem; color: var(--accent);">
                 TEMP <span style="color: var(--text); font-weight: bold;" id="tVal">--°</span><br>
                 PRESS <span style="color: var(--text); font-weight: bold;" id="pVal">-- hPa</span>
@@ -88,18 +78,15 @@ app.get('/', (req, res) => res.send(`
 
         <div id="harmony" class="page active">
             <div class="aura-card">
-                <div class="aqi-display">
+                <div style="display:flex; align-items:baseline; justify-content:center;">
                     <h1 class="aqi-num" id="aqi">--</h1>
-                    <div class="aqi-unit">
-                        <div style="font-weight: bold; font-size: 1.2rem;">AQI</div>
-                        <div style="color: #94a3b8; font-size: 0.8rem;">index</div>
+                    <div style="text-align:left; margin-right:15px;">
+                        <div style="font-weight:bold; font-size:1.2rem;">AQI</div>
+                        <div style="color:#94a3b8; font-size:0.8rem;">index</div>
                     </div>
                 </div>
                 <div class="aqi-bar"></div>
-                <div class="bar-labels">
-                    <span>0</span><span>50</span><span>100</span><span>150</span><span>200</span><span>300</span>
-                </div>
-                <div style="margin-top: 30px; font-size: 0.75rem; color: var(--accent); font-weight: bold; letter-spacing: 1px;">
+                <div style="margin-top: 30px; font-size: 0.75rem; color: var(--accent); font-weight: bold;">
                     <span id="dot">●</span> <span id="stat">SYNCING</span> • LIVE SENSOR
                 </div>
             </div>
@@ -114,34 +101,28 @@ app.get('/', (req, res) => res.send(`
             </div>
             <button class="btn btn-dark" id="camBtn" onclick="toggleCamera()">📸 ACTIVATE CAMERA</button>
             <button class="btn btn-dark" id="scanBtn" onclick="doScan()" style="display:none; background: var(--primary);">🎯 ANALYZE PLANT</button>
-            <div id="loading" style="display:none; text-align:center; padding:15px; color:var(--primary); font-weight:bold;">SambaNova AI is identifying...</div>
+            <div id="loading" style="display:none; text-align:center; padding:15px; color:var(--primary); font-weight:bold;">SambaNova AI Identifying...</div>
             <div id="res-box"></div>
         </div>
 
-        <div style="text-align: center; margin-top: 50px; padding: 20px 0; border-top: 1px solid #e2e8f0;">
-            <p style="font-size: 0.65rem; color: var(--accent); letter-spacing: 1.5px; line-height: 2;">
-                DESIGNED & ENGINEERED BY<br>
-                <span style="color: var(--text); font-weight: 800;">AHMED MAJED • MOHAMED HASSAN • ALI SAUD • AHMED RASHED</span><br>
-                <b>UNITED ARAB EMIRATES</b>
-            </p>
+        <div style="text-align: center; margin-top: 50px; padding-top: 20px; border-top: 1px solid #e2e8f0; font-size: 0.65rem; color: var(--accent);">
+            ENGINEERED BY AHMED MAJED & TEAM • UNITED ARAB EMIRATES
         </div>
     </div>
 
     <script>
         let stream;
-
         async function syncAll() {
             navigator.geolocation.getCurrentPosition(async (pos) => {
                 const res = await fetch(\`/api/aura-data?lat=\${pos.coords.latitude}&lon=\${pos.coords.longitude}\`);
-                const data = await res.json();
-                
-                document.getElementById('aqi').innerText = data.aqi;
-                document.getElementById('tVal').innerText = data.temp + "°";
-                document.getElementById('pVal').innerText = data.press + " hPa";
-                document.getElementById('locName').innerText = data.city.toUpperCase();
-                document.getElementById('stat').innerText = data.status.toUpperCase();
-                document.getElementById('dot').style.color = data.color;
-                document.getElementById('greet').innerText = data.msg;
+                const d = await res.json();
+                document.getElementById('aqi').innerText = d.aqi;
+                document.getElementById('tVal').innerText = d.temp + "°";
+                document.getElementById('pVal').innerText = d.press + " hPa";
+                document.getElementById('locName').innerText = d.city.toUpperCase();
+                document.getElementById('stat').innerText = d.status.toUpperCase();
+                document.getElementById('dot').style.color = d.color;
+                document.getElementById('greet').innerText = d.msg;
             });
         }
 
@@ -174,6 +155,7 @@ app.get('/', (req, res) => res.send(`
 
         async function doScan() {
             const canvas = document.createElement('canvas');
+            const v = document.getElementById('v');
             canvas.width = v.videoWidth; canvas.height = v.videoHeight;
             canvas.getContext('2d').drawImage(v, 0, 0);
             const data = canvas.toDataURL('image/jpeg');
@@ -192,14 +174,13 @@ app.get('/', (req, res) => res.send(`
             document.getElementById('res-box').innerHTML = "<b>Aura Botanist:</b><br>" + result.text;
             document.getElementById('res-box').style.display = 'block';
         }
-
         window.onload = syncAll;
     </script>
 </body>
 </html>
 `));
 
-// Backend APIs
+// --- 3. BACKEND APIS ---
 app.get('/api/aura-data', async (req, res) => {
     const { lat, lon } = req.query;
     try {
@@ -208,7 +189,7 @@ app.get('/api/aura-data', async (req, res) => {
 
         const aqi = aqiRes.data.aqi;
         let info = { status: "Good", color: "#10b981", msg: "A quiet day for breathing." };
-        if(aqi > 50) info = { status: "Moderate", color: "#f59e0b", msg: "Air is okay. Keep your plants close." };
+        if(aqi > 50) info = { status: "Moderate", color: "#f59e0b", msg: "Air is okay. Keep plants close." };
         if(aqi > 100) info = { status: "Unhealthy", color: "#ef4444", msg: "Stay indoors if you can." };
 
         res.json({
@@ -216,22 +197,22 @@ app.get('/api/aura-data', async (req, res) => {
             temp: Math.round(wRes.main.temp),
             press: wRes.main.pressure,
             city: aqiRes.data.city.name.split(',')[0],
-            status: info.status,
-            color: info.color,
-            msg: info.msg
+            status: info.status, color: info.color, msg: info.msg
         });
     } catch (e) { res.status(500).send("Error"); }
 });
 
 app.post('/api/analyze', async (req, res) => {
-    const response = await sambanova.chat.completions.create({
-        model: "Llama-4-Maverick-17B-128E-Instruct",
-        messages: [{ role: "user", content: [
-            { type: "text", text: "Identify plant disease and give care steps in Arabic." },
-            { type: "image_url", image_url: { url: req.body.image } }
-        ]}]
-    });
-    res.json({ text: response.choices[0].message.content });
+    try {
+        const response = await sambanova.chat.completions.create({
+            model: "Llama-4-Maverick-17B-128E-Instruct",
+            messages: [{ role: "user", content: [
+                { type: "text", text: "Identify plant disease and give care steps in Arabic." },
+                { type: "image_url", image_url: { url: req.body.image } }
+            ]}]
+        });
+        res.json({ text: response.choices[0].message.content });
+    } catch (e) { res.status(500).json({ text: "SambaNova failed." }); }
 });
 
 app.listen(3000);
