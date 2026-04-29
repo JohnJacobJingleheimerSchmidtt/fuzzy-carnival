@@ -6,7 +6,7 @@ const app = express();
 
 // --- 1. CONFIGURATION ---
 // Replace with your actual keys
-const SAMBANOVA_API_KEY = "YOUR_SAMBANOVA_KEY"; 
+const SAMBANOVA_API_KEY = "6a90c8f4-e563-4fe4-be89-550c66024fef"; 
 const WAQI_TOKEN = "f1c59ef351d2e4cf906174a4a46dbd3633f4a2ab"; 
 const WEATHER_API_KEY = "75cc65105421a699a2aad332d7188f96";
 
