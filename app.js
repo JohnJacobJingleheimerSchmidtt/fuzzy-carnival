@@ -252,7 +252,6 @@ app.post('/api/analyze', async (req, res) => {
             ? req.body.image 
             : `data:image/jpeg;base64,${req.body.image}`;
 
-        // Vision models confirmed available on your dashboard
         const visionModels = [
             "gemma-4-31B-it",
             "MiniMax-M3"
@@ -275,6 +274,13 @@ app.post('/api/analyze', async (req, res) => {
             } catch (err) {
                 lastError = err;
             }
+        }
+
+        // Fallback response when SambaNova Cloud payment/billing limit is hit
+        if (lastError && (lastError.status === 402 || lastError.message.includes('402') || lastError.message.includes('payment'))) {
+            return res.json({ 
+                text: "⚠️ **تنبيه SambaNova Billing:** يتطلب حساب SambaNova تفعيل طريقة دفع لاستخدام نماذج Vision. يرجى إضافتها عبر https://cloud.sambanova.ai/plans/billing أو استخدام نموذج تحليل نصوص." 
+            });
         }
 
         throw lastError;
