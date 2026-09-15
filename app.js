@@ -115,7 +115,8 @@ app.get('/', (req, res) => res.send(`
 
         <div style="text-align: center; margin-top: 40px; font-size: 0.6rem; color: var(--accent); letter-spacing: 1.5px; line-height: 2;">
             ENGINEERED IN THE UNITED ARAB EMIRATES<br>
-            <b>AHMED MAJED • MOHAMED HASSAN • ALI SAUD • AHMED RASHED</b>
+            <b>AHMED MAJED • ALI KHALIL • AHMED JIHAD</b><br>
+            <span>SUPERVISED BY ENG. AHMED MAHER HEJAZY</span>
         </div>
     </div>
 
