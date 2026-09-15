@@ -6,7 +6,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // --- 1. CONFIGURATION ---
-const SAMBANOVA_API_KEY = process.env.SAMBANOVA_API_KEY || "6a90c8f4-e563-4fe4-be89-550c66024fef"; 
+const SAMBANOVA_API_KEY = process.env.SAMBANOVA_API_KEY || "c7b1527f-b060-4d99-a279-10cb2d87d873"; 
 const WAQI_TOKEN = process.env.WAQI_TOKEN || "f1c59ef351d2e4cf906174a4a46dbd3633f4a2ab"; 
 const WEATHER_API_KEY = process.env.WEATHER_API_KEY || "75cc65105421a699a2aad332d7188f96";
 
@@ -252,7 +252,6 @@ app.post('/api/analyze', async (req, res) => {
             ? req.body.image 
             : `data:image/jpeg;base64,${req.body.image}`;
 
-        // Dynamic model detection from SambaNova account API
         let targetModel = "Llama-3.2-11B-Vision-Instruct";
         try {
             const availableModels = await sambanova.models.list();
