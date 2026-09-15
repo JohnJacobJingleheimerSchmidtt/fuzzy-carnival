@@ -252,30 +252,14 @@ app.post('/api/analyze', async (req, res) => {
             ? req.body.image 
             : `data:image/jpeg;base64,${req.body.image}`;
 
-        let candidateModels = [
-            "Llama-3.2-11B-Vision-Instruct",
-            "Llama-3.2-90B-Vision-Instruct",
-            "Meta-Llama-3.2-11B-Vision-Instruct",
-            "Meta-Llama-3.2-90B-Vision-Instruct",
-            "Qwen2-VL-72B-Instruct"
+        // Vision models confirmed available on your dashboard
+        const visionModels = [
+            "gemma-4-31B-it",
+            "MiniMax-M3"
         ];
 
-        try {
-            const list = await sambanova.models.list();
-            if (list && list.data) {
-                const dynamicVision = list.data
-                    .map(m => m.id)
-                    .filter(id => id.toLowerCase().includes('vision') || id.toLowerCase().includes('vl'));
-                if (dynamicVision.length > 0) {
-                    candidateModels = [...dynamicVision, ...candidateModels];
-                }
-            }
-        } catch (listErr) {
-            console.warn("Could not retrieve model list from SambaNova:", listErr.message);
-        }
-
         let lastError = null;
-        for (const model of candidateModels) {
+        for (const model of visionModels) {
             try {
                 const response = await sambanova.chat.completions.create({
                     model: model,
@@ -293,7 +277,7 @@ app.post('/api/analyze', async (req, res) => {
             }
         }
 
-        throw lastError || new Error("No accessible vision models found on SambaNova.");
+        throw lastError;
     } catch (e) { 
         console.error("SambaNova Error:", e);
         res.status(500).json({ error: "SambaNova analysis failed: " + (e.message || "Unknown error") }); 
