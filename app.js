@@ -1,7 +1,6 @@
-import express from 'express';import express from "express";
-import cors from "cors";
-import OpenAI from "openai";
-import fetch from "node-fetch";
+const express = require('express');
+const cors = require('cors');
+const OpenAI = require('openai');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -17,11 +16,11 @@ const sambanova = new OpenAI({
 });
 
 app.use(cors());
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ limit: "50mb", extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// --- 2. THE AURA DASHBOARD (FRONTEND) ---
-app.get("/", (req, res) => res.send(`
+// --- 2. FRONTEND DASHBOARD ---
+app.get('/', (req, res) => res.send(`
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -222,7 +221,7 @@ app.get("/", (req, res) => res.send(`
 </html>
 `));
 
-// --- 3. BACKEND (Node.js Express) ---
+// --- 3. BACKEND API ROUTES ---
 app.get('/api/sync', async (req, res) => {
     const { lat, lon } = req.query;
     try {
@@ -241,7 +240,9 @@ app.get('/api/sync', async (req, res) => {
             city: aqiRes.data.city.name.split(',')[0],
             status: info.status, color: info.color, msg: info.msg
         });
-    } catch (e) { res.status(500).send("Sync Error"); }
+    } catch (e) {
+        res.status(500).json({ error: "Sync Error" });
+    }
 });
 
 app.post('/api/analyze', async (req, res) => {
