@@ -191,7 +191,7 @@ app.get('/', (req, res) => res.send(`
             canvas.getContext('2d').drawImage(v, 0, 0);
             const data = canvas.toDataURL('image/jpeg', 0.85);
             document.getElementById('p').src = data;
-            document.getElementById('p').style.display = 'block';
+            document.getElementById('p].style.display = 'block';
             stopCamera();
             processImage(data);
         }
@@ -252,17 +252,32 @@ app.post('/api/analyze', async (req, res) => {
             ? req.body.image 
             : `data:image/jpeg;base64,${req.body.image}`;
 
-        const response = await sambanova.chat.completions.create({
-            model: "Llama-3.2-11B-Vision-Instruct",
-            messages: [{
-                role: "user", 
-                content: [
-                    { type: "text", text: "Diagnose this plant disease and provide professional care instructions in Arabic. Be concise." },
-                    { type: "image_url", image_url: { url: imageUrl } }
-                ]
-            }]
-        });
-        res.json({ text: response.choices[0].message.content });
+        // Attempt Vision Models supported on SambaNova Cloud
+        const visionModels = [
+            "Llama-3.2-11B-Vision-Instruct",
+            "Llama-3.2-90B-Vision-Instruct"
+        ];
+
+        let lastError = null;
+        for (const model of visionModels) {
+            try {
+                const response = await sambanova.chat.completions.create({
+                    model: model,
+                    messages: [{
+                        role: "user", 
+                        content: [
+                            { type: "text", text: "Diagnose this plant disease and provide professional care instructions in Arabic. Be concise." },
+                            { type: "image_url", image_url: { url: imageUrl } }
+                        ]
+                    }]
+                });
+                return res.json({ text: response.choices[0].message.content });
+            } catch (err) {
+                lastError = err;
+            }
+        }
+
+        throw lastError;
     } catch (e) { 
         console.error("SambaNova Error:", e);
         res.status(500).json({ error: "SambaNova analysis failed: " + (e.message || "Unknown error") }); 
