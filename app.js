@@ -191,7 +191,7 @@ app.get('/', (req, res) => res.send(`
             canvas.getContext('2d').drawImage(v, 0, 0);
             const data = canvas.toDataURL('image/jpeg', 0.85);
             document.getElementById('p').src = data;
-            document.getElementById('p].style.display = 'block';
+            document.getElementById('p').style.display = 'block';
             stopCamera();
             processImage(data);
         }
@@ -252,8 +252,9 @@ app.post('/api/analyze', async (req, res) => {
             ? req.body.image 
             : `data:image/jpeg;base64,${req.body.image}`;
 
-        // Attempt Vision Models supported on SambaNova Cloud
         const visionModels = [
+            "Meta-Llama-3.2-11B-Vision-Instruct",
+            "Meta-Llama-3.2-90B-Vision-Instruct",
             "Llama-3.2-11B-Vision-Instruct",
             "Llama-3.2-90B-Vision-Instruct"
         ];
