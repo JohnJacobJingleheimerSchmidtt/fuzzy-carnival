@@ -252,33 +252,32 @@ app.post('/api/analyze', async (req, res) => {
             ? req.body.image 
             : `data:image/jpeg;base64,${req.body.image}`;
 
-        const visionModels = [
-            "Meta-Llama-3.2-11B-Vision-Instruct",
-            "Meta-Llama-3.2-90B-Vision-Instruct",
-            "Llama-3.2-11B-Vision-Instruct",
-            "Llama-3.2-90B-Vision-Instruct"
-        ];
-
-        let lastError = null;
-        for (const model of visionModels) {
-            try {
-                const response = await sambanova.chat.completions.create({
-                    model: model,
-                    messages: [{
-                        role: "user", 
-                        content: [
-                            { type: "text", text: "Diagnose this plant disease and provide professional care instructions in Arabic. Be concise." },
-                            { type: "image_url", image_url: { url: imageUrl } }
-                        ]
-                    }]
-                });
-                return res.json({ text: response.choices[0].message.content });
-            } catch (err) {
-                lastError = err;
+        // Dynamic model detection from SambaNova account API
+        let targetModel = "Llama-3.2-11B-Vision-Instruct";
+        try {
+            const availableModels = await sambanova.models.list();
+            const foundVisionModel = availableModels.data.find(m => 
+                m.id.toLowerCase().includes('vision') || m.id.toLowerCase().includes('11b')
+            );
+            if (foundVisionModel) {
+                targetModel = foundVisionModel.id;
             }
+        } catch (fetchErr) {
+            console.warn("Failed to dynamically fetch SambaNova model list, using default:", fetchErr.message);
         }
 
-        throw lastError;
+        const response = await sambanova.chat.completions.create({
+            model: targetModel,
+            messages: [{
+                role: "user", 
+                content: [
+                    { type: "text", text: "Diagnose this plant disease and provide professional care instructions in Arabic. Be concise." },
+                    { type: "image_url", image_url: { url: imageUrl } }
+                ]
+            }]
+        });
+
+        res.json({ text: response.choices[0].message.content });
     } catch (e) { 
         console.error("SambaNova Error:", e);
         res.status(500).json({ error: "SambaNova analysis failed: " + (e.message || "Unknown error") }); 
