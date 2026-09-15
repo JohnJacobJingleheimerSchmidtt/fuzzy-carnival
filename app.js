@@ -1,24 +1,27 @@
-import express from 'express';
+import express from 'express';import express from "express";
+import cors from "cors";
 import OpenAI from "openai";
-import fetch from 'node-fetch';
+import fetch from "node-fetch";
 
 const app = express();
+const PORT = process.env.PORT || 3000;
 
 // --- 1. CONFIGURATION ---
-// Replace with your actual keys
-const SAMBANOVA_API_KEY = "6a90c8f4-e563-4fe4-be89-550c66024fef"; 
-const WAQI_TOKEN = "f1c59ef351d2e4cf906174a4a46dbd3633f4a2ab"; 
-const WEATHER_API_KEY = "75cc65105421a699a2aad332d7188f96";
+const SAMBANOVA_API_KEY = process.env.SAMBANOVA_API_KEY || "6a90c8f4-e563-4fe4-be89-550c66024fef"; 
+const WAQI_TOKEN = process.env.WAQI_TOKEN || "f1c59ef351d2e4cf906174a4a46dbd3633f4a2ab"; 
+const WEATHER_API_KEY = process.env.WEATHER_API_KEY || "75cc65105421a699a2aad332d7188f96";
 
 const sambanova = new OpenAI({
-    apiKey: SAMBANOVA_API_KEY,
-    baseURL: "https://api.sambanova.ai/v1",
+  apiKey: SAMBANOVA_API_KEY,
+  baseURL: "https://api.sambanova.ai/v1",
 });
 
-app.use(express.json({ limit: '50mb' }));
+app.use(cors());
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 // --- 2. THE AURA DASHBOARD (FRONTEND) ---
-app.get('/', (req, res) => res.send(`
+app.get("/", (req, res) => res.send(`
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -30,26 +33,22 @@ app.get('/', (req, res) => res.send(`
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
         .container { max-width: 500px; margin: auto; }
 
-        /* Aura Professional Header */
         .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
         .brand { display: flex; align-items: center; gap: 8px; }
         .brand-ring { width: 12px; height: 12px; border: 2.5px solid var(--primary); border-radius: 50%; }
         .loc-badge { display: flex; align-items: center; gap: 6px; background: #e2e8f0; padding: 5px 12px; border-radius: 20px; font-size: 0.7rem; font-weight: 800; color: var(--accent); }
         .pulse { width: 7px; height: 7px; background: #ef4444; border-radius: 50%; animation: blink 1.5s infinite; }
 
-        /* Main Data Card */
         .aura-card { background: var(--card); border-radius: 32px; padding: 40px 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.04); border: 1px solid #e2e8f0; text-align: center; margin-bottom: 20px; }
         .aqi-val { font-size: 8rem; font-weight: 300; margin: 0; letter-spacing: -5px; line-height: 1; }
         .aqi-bar { height: 6px; background: linear-gradient(to right, #009966, #ffde33, #ff9933, #cc0033); border-radius: 10px; margin: 30px 0 10px 0; }
         
-        /* Navigation */
         .nav-tabs { display: flex; gap: 10px; margin-bottom: 25px; background: #e2e8f0; padding: 5px; border-radius: 50px; }
         .tab { flex: 1; padding: 12px; text-align: center; cursor: pointer; border-radius: 50px; font-size: 0.8rem; font-weight: bold; color: var(--accent); transition: 0.3s; }
         .tab.active { background: var(--text); color: white; }
 
-        /* Scanner Section (Back Camera Fix Applied) */
         .scanner-view { width: 100%; aspect-ratio: 1; background: #000; border-radius: 28px; overflow: hidden; position: relative; border: 1px solid #cbd5e1; }
-        video, img { width: 100%; height: 100%; object-fit: cover; transform: scaleX(1); } 
+        video, img { width: 100%; height: 100%; object-fit: cover; } 
         
         .btn { border: none; padding: 16px; border-radius: 18px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 15px; font-size: 0.9rem; }
         .btn-dark { background: var(--text); color: white; }
@@ -63,13 +62,11 @@ app.get('/', (req, res) => res.send(`
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
         <div class="header-top">
             <div class="brand"><span class="brand-ring"></span><div style="font-weight:900; font-size:1.2rem;">Aura</div></div>
             <div class="loc-badge"><span class="pulse"></span><span id="locName">GPS SCANNING...</span></div>
         </div>
 
-        <!-- Weather Greeting -->
         <div style="margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-end;">
             <h2 id="greet" style="font-weight: 400; font-size: 1.5rem; margin: 0; max-width: 65%;">Calibrating sensors...</h2>
             <div style="text-align: left; font-size: 0.8rem; color: var(--accent);">
@@ -83,7 +80,6 @@ app.get('/', (req, res) => res.send(`
             <div class="tab" onclick="showTab('analyzer', this)">PLANT DOCTOR</div>
         </div>
 
-        <!-- Tab 1: Air Quality -->
         <div id="harmony" class="page active">
             <div class="aura-card">
                 <div style="display:flex; align-items:baseline; justify-content:center;">
@@ -101,7 +97,6 @@ app.get('/', (req, res) => res.send(`
             <button class="btn btn-outline" onclick="syncAura()">🔄 RE-SYNC LOCATION</button>
         </div>
 
-        <!-- Tab 2: Plant Analyzer & File Upload -->
         <div id="analyzer" class="page">
             <div class="scanner-view">
                 <video id="v" autoplay playsinline style="display:none;"></video>
@@ -109,7 +104,6 @@ app.get('/', (req, res) => res.send(`
                 <div id="ph" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); color:var(--accent); font-weight:bold;">Camera Ready</div>
             </div>
             
-            <!-- Dual Input Options -->
             <button class="btn btn-dark" id="camBtn" onclick="toggleCamera()">📸 ACTIVATE CAMERA</button>
             <button class="btn btn-outline" onclick="document.getElementById('fileIn').click()">📁 UPLOAD FROM GALLERY</button>
             <input type="file" id="fileIn" style="display:none;" accept="image/*" onchange="handleFile(event)">
@@ -129,18 +123,19 @@ app.get('/', (req, res) => res.send(`
     <script>
         let stream;
 
-        // Sync AQI and Weather
         async function syncAura() {
             navigator.geolocation.getCurrentPosition(async (pos) => {
-                const res = await fetch(\`/api/sync?lat=\${pos.coords.latitude}&lon=\${pos.coords.longitude}\`);
-                const d = await res.json();
-                document.getElementById('aqi').innerText = d.aqi;
-                document.getElementById('tVal').innerText = d.temp + "°";
-                document.getElementById('pVal').innerText = d.press + " hPa";
-                document.getElementById('locName').innerText = d.city.toUpperCase();
-                document.getElementById('stat').innerText = d.status.toUpperCase();
-                document.getElementById('dot').style.color = d.color;
-                document.getElementById('greet').innerText = d.msg;
+                try {
+                    const res = await fetch(\`/api/sync?lat=\${pos.coords.latitude}&lon=\${pos.coords.longitude}\`);
+                    const d = await res.json();
+                    document.getElementById('aqi').innerText = d.aqi;
+                    document.getElementById('tVal').innerText = d.temp + "°";
+                    document.getElementById('pVal').innerText = d.press + " hPa";
+                    document.getElementById('locName').innerText = d.city.toUpperCase();
+                    document.getElementById('stat').innerText = d.status.toUpperCase();
+                    document.getElementById('dot').style.color = d.color;
+                    document.getElementById('greet').innerText = d.msg;
+                } catch(e) { console.error(e); }
             });
         }
 
@@ -152,16 +147,17 @@ app.get('/', (req, res) => res.send(`
             if(id !== 'analyzer') stopCamera();
         }
 
-        // Camera Logic
         async function toggleCamera() {
             if(stream) { stopCamera(); return; }
-            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-            document.getElementById('v').srcObject = stream;
-            document.getElementById('v').style.display = 'block';
-            document.getElementById('p').style.display = 'none';
-            document.getElementById('ph').style.display = 'none';
-            document.getElementById('camBtn').innerText = "🛑 STOP CAMERA";
-            document.getElementById('scanBtn').style.display = 'block';
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+                document.getElementById('v').srcObject = stream;
+                document.getElementById('v').style.display = 'block';
+                document.getElementById('p').style.display = 'none';
+                document.getElementById('ph').style.display = 'none';
+                document.getElementById('camBtn').innerText = "🛑 STOP CAMERA";
+                document.getElementById('scanBtn').style.display = 'block';
+            } catch(e) { alert("Camera access failed."); }
         }
 
         function stopCamera() {
@@ -172,7 +168,6 @@ app.get('/', (req, res) => res.send(`
             document.getElementById('scanBtn').style.display = 'none';
         }
 
-        // Handle File Upload from Gallery
         async function handleFile(e) {
             const file = e.target.files[0];
             if(!file) return;
@@ -183,37 +178,42 @@ app.get('/', (req, res) => res.send(`
                 document.getElementById('p').style.display = 'block';
                 document.getElementById('ph').style.display = 'none';
                 stopCamera();
-                processImage(data); // Auto-analyze
+                processImage(data);
             };
             reader.readAsDataURL(file);
         }
 
-        // Capture from Live Video
         async function doScan() {
             const canvas = document.createElement('canvas');
             const v = document.getElementById('v');
-            canvas.width = v.videoWidth; canvas.height = v.videoHeight;
+            canvas.width = v.videoWidth || 800; 
+            canvas.height = v.videoHeight || 600;
             canvas.getContext('2d').drawImage(v, 0, 0);
-            const data = canvas.toDataURL('image/jpeg');
+            const data = canvas.toDataURL('image/jpeg', 0.85);
             document.getElementById('p').src = data;
             document.getElementById('p').style.display = 'block';
             stopCamera();
             processImage(data);
         }
 
-        // Common Analysis Logic using SambaNova
         async function processImage(base64) {
             document.getElementById('loading').style.display = 'block';
             document.getElementById('res-box').style.display = 'none';
-            const res = await fetch('/api/analyze', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ image: base64 })
-            });
-            const result = await res.json();
-            document.getElementById('loading').style.display = 'none';
-            document.getElementById('res-box').innerHTML = "<b>Aura Botanist Diagnosis:</b><br>" + result.text;
-            document.getElementById('res-box').style.display = 'block';
+            try {
+                const res = await fetch('/api/analyze', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ image: base64 })
+                });
+                const result = await res.json();
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('res-box').innerHTML = "<b>Aura Botanist Diagnosis:</b><br>" + (result.text || result.error);
+                document.getElementById('res-box').style.display = 'block';
+            } catch(e) {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('res-box').innerHTML = "<b>Connection Error:</b><br>" + e.message;
+                document.getElementById('res-box').style.display = 'block';
+            }
         }
 
         window.onload = syncAura;
@@ -246,15 +246,25 @@ app.get('/api/sync', async (req, res) => {
 
 app.post('/api/analyze', async (req, res) => {
     try {
+        const imageUrl = req.body.image.startsWith('data:') 
+            ? req.body.image 
+            : `data:image/jpeg;base64,${req.body.image}`;
+
         const response = await sambanova.chat.completions.create({
-            model: "Llama-4-Maverick-17B-128E-Instruct",
-            messages: [{ role: "user", content: [
-                { type: "text", text: "Diagnose this plant disease and provide professional care instructions in Arabic. Be concise." },
-                { type: "image_url", image_url: { url: req.body.image } }
-            ]}]
+            model: "Llama-3.2-11B-Vision-Instruct",
+            messages: [{
+                role: "user", 
+                content: [
+                    { type: "text", text: "Diagnose this plant disease and provide professional care instructions in Arabic. Be concise." },
+                    { type: "image_url", image_url: { url: imageUrl } }
+                ]
+            }]
         });
         res.json({ text: response.choices[0].message.content });
-    } catch (e) { res.status(500).json({ text: "SambaNova analysis failed." }); }
+    } catch (e) { 
+        console.error("SambaNova Error:", e);
+        res.status(500).json({ error: "SambaNova analysis failed: " + (e.message || "Unknown error") }); 
+    }
 });
 
-app.listen(3000, () => console.log('Aura Online: http://localhost:3000'));
+app.listen(PORT, () => console.log(`Aura Online: http://localhost:${PORT}`));

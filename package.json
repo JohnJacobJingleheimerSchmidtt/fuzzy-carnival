@@ -1,6 +1,16 @@
 {
-  "name": "plant-analyzer",
+  "name": "aura-smart-monitor",
+  "version": "1.0.0",
+  "description": "UAE Smart Monitor with Plant Disease Diagnosis",
+  "main": "server.js",
   "type": "module",
-  "scripts": { "start": "node app.js" },
-  "dependencies": { "express": "^4.18.2", "openai": "^4.0.0" }
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "node-fetch": "^3.3.2",
+    "openai": "^4.33.0"
+  }
 }
