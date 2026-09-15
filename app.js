@@ -252,31 +252,48 @@ app.post('/api/analyze', async (req, res) => {
             ? req.body.image 
             : `data:image/jpeg;base64,${req.body.image}`;
 
-        let targetModel = "Llama-3.2-11B-Vision-Instruct";
+        let candidateModels = [
+            "Llama-3.2-11B-Vision-Instruct",
+            "Llama-3.2-90B-Vision-Instruct",
+            "Meta-Llama-3.2-11B-Vision-Instruct",
+            "Meta-Llama-3.2-90B-Vision-Instruct",
+            "Qwen2-VL-72B-Instruct"
+        ];
+
         try {
-            const availableModels = await sambanova.models.list();
-            const foundVisionModel = availableModels.data.find(m => 
-                m.id.toLowerCase().includes('vision') || m.id.toLowerCase().includes('11b')
-            );
-            if (foundVisionModel) {
-                targetModel = foundVisionModel.id;
+            const list = await sambanova.models.list();
+            if (list && list.data) {
+                const dynamicVision = list.data
+                    .map(m => m.id)
+                    .filter(id => id.toLowerCase().includes('vision') || id.toLowerCase().includes('vl'));
+                if (dynamicVision.length > 0) {
+                    candidateModels = [...dynamicVision, ...candidateModels];
+                }
             }
-        } catch (fetchErr) {
-            console.warn("Failed to dynamically fetch SambaNova model list, using default:", fetchErr.message);
+        } catch (listErr) {
+            console.warn("Could not retrieve model list from SambaNova:", listErr.message);
         }
 
-        const response = await sambanova.chat.completions.create({
-            model: targetModel,
-            messages: [{
-                role: "user", 
-                content: [
-                    { type: "text", text: "Diagnose this plant disease and provide professional care instructions in Arabic. Be concise." },
-                    { type: "image_url", image_url: { url: imageUrl } }
-                ]
-            }]
-        });
+        let lastError = null;
+        for (const model of candidateModels) {
+            try {
+                const response = await sambanova.chat.completions.create({
+                    model: model,
+                    messages: [{
+                        role: "user", 
+                        content: [
+                            { type: "text", text: "Diagnose this plant disease and provide professional care instructions in Arabic. Be concise." },
+                            { type: "image_url", image_url: { url: imageUrl } }
+                        ]
+                    }]
+                });
+                return res.json({ text: response.choices[0].message.content });
+            } catch (err) {
+                lastError = err;
+            }
+        }
 
-        res.json({ text: response.choices[0].message.content });
+        throw lastError || new Error("No accessible vision models found on SambaNova.");
     } catch (e) { 
         console.error("SambaNova Error:", e);
         res.status(500).json({ error: "SambaNova analysis failed: " + (e.message || "Unknown error") }); 
