@@ -6,7 +6,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // --- 1. CONFIGURATION ---
-const SAMBANOVA_API_KEY = process.env.SAMBANOVA_API_KEY || "c7b1527f-b060-4d99-a279-10cb2d87d873"; 
+const SAMBANOVA_API_KEY = process.env.SAMBANOVA_API_KEY || "df821831-6aeb-4b1d-8ce4-956b187aafae"; 
 const WAQI_TOKEN = process.env.WAQI_TOKEN || "f1c59ef351d2e4cf906174a4a46dbd3633f4a2ab"; 
 const WEATHER_API_KEY = process.env.WEATHER_API_KEY || "75cc65105421a699a2aad332d7188f96";
 
