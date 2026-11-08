@@ -115,7 +115,7 @@ app.get('/', (req, res) => res.send(`
 
         <div style="text-align: center; margin-top: 40px; font-size: 0.6rem; color: var(--accent); letter-spacing: 1.5px; line-height: 2;">
             ENGINEERED IN THE UNITED ARAB EMIRATES<br>
-            <b>AHMED MAJED • AHMED JIHAD</b><br>
+            <b>AHMED MAJED • ALI KHALIL • AHMED JIHAD</b><br>
             <span>SUPERVISED BY ENG. AHMED MAHER HEJAZY</span>
         </div>
     </div>
@@ -276,7 +276,6 @@ app.post('/api/analyze', async (req, res) => {
             }
         }
 
-        // Fallback response when SambaNova Cloud payment/billing limit is hit
         if (lastError && (lastError.status === 402 || lastError.message.includes('402') || lastError.message.includes('payment'))) {
             return res.json({ 
                 text: "⚠️ **تنبيه SambaNova Billing:** يتطلب حساب SambaNova تفعيل طريقة دفع لاستخدام نماذج Vision. يرجى إضافتها عبر https://cloud.sambanova.ai/plans/billing أو استخدام نموذج تحليل نصوص." 
