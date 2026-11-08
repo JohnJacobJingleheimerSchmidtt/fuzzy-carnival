@@ -254,6 +254,7 @@ app.post('/api/analyze', async (req, res) => {
 
         const response = await visionClient.chat.completions.create({
             model: "qwen/qwen3.8-27b",
+            max_tokens: 500,
             messages: [{
                 role: "user",
                 content: [
