@@ -8,7 +8,7 @@ const PORT = process.env.PORT || 3000;
 // --- 1. CONFIGURATION ---
 const WAQI_TOKEN = process.env.WAQI_TOKEN || "f1c59ef351d2e4cf906174a4a46dbd3633f4a2ab"; 
 const WEATHER_API_KEY = process.env.WEATHER_API_KEY || "75cc65105421a699a2aad332d7188f96";
-const GROQ_API_KEY = process.env.GROQ_API_KEY; 
+const GROQ_API_KEY = process.env.GROQ_API_KEY || "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"; 
 
 const visionClient = new OpenAI({
   apiKey: GROQ_API_KEY,
