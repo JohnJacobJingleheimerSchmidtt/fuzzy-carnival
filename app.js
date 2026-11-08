@@ -116,7 +116,7 @@ app.get('/', (req, res) => res.send(`
         <div style="text-align: center; margin-top: 40px; font-size: 0.6rem; color: var(--accent); letter-spacing: 1.5px; line-height: 2;">
             ENGINEERED IN THE UNITED ARAB EMIRATES<br>
             <b>AHMED MAJED • Abdula hajer • Abdula tareq • mohhamed hassan </b><br>
-            <span>SUPERVISED BY ENG. AHMED MAHER HEJAZY</span>
+            <span>SUPERVISED BY ashraf dabas </span>
         </div>
     </div>
 
