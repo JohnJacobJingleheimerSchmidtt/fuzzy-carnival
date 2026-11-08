@@ -53,7 +53,7 @@ app.get('/', (req, res) => res.send(`
         .btn-dark { background: var(--text); color: white; }
         .btn-outline { background: white; border: 1px solid #e2e8f0; color: var(--text); }
 
-        #res-box { background: #f1f5f9; padding: 20px; border-radius: 20px; margin-top: 15px; display: none; text-align: right; line-height: 1.6; border-right: 5px solid var(--primary); }
+        #res-box { background: #f1f5f9; padding: 20px; border-radius: 20px; margin-top: 15px; display: none; text-align: right; line-height: 1.6; border-right: 5px solid var(--primary); white-space: pre-wrap; }
         @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
         .page { display: none; }
         .page.active { display: block; }
@@ -207,7 +207,7 @@ app.get('/', (req, res) => res.send(`
                 });
                 const result = await res.json();
                 document.getElementById('loading').style.display = 'none';
-                document.getElementById('res-box').innerHTML = "<b>Aura Botanist Diagnosis:</b><br>" + (result.text || result.error);
+                document.getElementById('res-box').innerHTML = "<b>Aura Botanist Diagnosis:</b><br><br>" + (result.text || result.error);
                 document.getElementById('res-box').style.display = 'block';
             } catch(e) {
                 document.getElementById('loading').style.display = 'none';
@@ -258,7 +258,7 @@ app.post('/api/analyze', async (req, res) => {
             messages: [{
                 role: "user",
                 content: [
-                    { type: "text", text: "Diagnose this plant disease and provide professional care instructions in Arabic. Be concise." },
+                    { type: "text", text: "Diagnose this plant disease and provide professional care instructions in both English and Arabic. Be concise." },
                     { type: "image_url", image_url: { url: imageUrl } }
                 ]
             }]
