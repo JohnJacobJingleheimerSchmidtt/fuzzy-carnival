@@ -6,13 +6,13 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // --- 1. CONFIGURATION ---
-const SAMBANOVA_API_KEY = process.env.SAMBANOVA_API_KEY || "df821831-6aeb-4b1d-8ce4-956b187aafae"; 
 const WAQI_TOKEN = process.env.WAQI_TOKEN || "f1c59ef351d2e4cf906174a4a46dbd3633f4a2ab"; 
 const WEATHER_API_KEY = process.env.WEATHER_API_KEY || "75cc65105421a699a2aad332d7188f96";
+const GROQ_API_KEY = process.env.GROQ_API_KEY; 
 
-const sambanova = new OpenAI({
-  apiKey: SAMBANOVA_API_KEY,
-  baseURL: "https://api.sambanova.ai/v1",
+const visionClient = new OpenAI({
+  apiKey: GROQ_API_KEY,
+  baseURL: "https://api.groq.com/openai/v1",
 });
 
 app.use(cors());
@@ -26,7 +26,7 @@ app.get('/', (req, res) => res.send(`
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SambaNova Aura | UAE Smart Monitor</title>
+    <title>Aura Smart Monitor | UAE Smart Agriculture</title>
     <style>
         :root { --primary: #10b981; --bg: #f8fafc; --text: #1e293b; --card: #ffffff; --accent: #64748b; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
@@ -109,7 +109,7 @@ app.get('/', (req, res) => res.send(`
             
             <button class="btn btn-dark" id="scanBtn" onclick="doScan()" style="display:none; background: var(--primary);">🎯 ANALYZE IMAGE</button>
             
-            <div id="loading" style="display:none; text-align:center; padding:15px; color:var(--primary); font-weight:bold;">SambaNova AI Analysis in progress...</div>
+            <div id="loading" style="display:none; text-align:center; padding:15px; color:var(--primary); font-weight:bold;">AI Plant Doctor Analysis in progress...</div>
             <div id="res-box"></div>
         </div>
 
@@ -252,40 +252,21 @@ app.post('/api/analyze', async (req, res) => {
             ? req.body.image 
             : `data:image/jpeg;base64,${req.body.image}`;
 
-        const visionModels = [
-            "gemma-4-31B-it",
-            "MiniMax-M3"
-        ];
+        const response = await visionClient.chat.completions.create({
+            model: "llama-3.2-11b-vision-preview",
+            messages: [{
+                role: "user",
+                content: [
+                    { type: "text", text: "Diagnose this plant disease and provide professional care instructions in Arabic. Be concise." },
+                    { type: "image_url", image_url: { url: imageUrl } }
+                ]
+            }]
+        });
 
-        let lastError = null;
-        for (const model of visionModels) {
-            try {
-                const response = await sambanova.chat.completions.create({
-                    model: model,
-                    messages: [{
-                        role: "user", 
-                        content: [
-                            { type: "text", text: "Diagnose this plant disease and provide professional care instructions in Arabic. Be concise." },
-                            { type: "image_url", image_url: { url: imageUrl } }
-                        ]
-                    }]
-                });
-                return res.json({ text: response.choices[0].message.content });
-            } catch (err) {
-                lastError = err;
-            }
-        }
-
-        if (lastError && (lastError.status === 402 || lastError.message.includes('402') || lastError.message.includes('payment'))) {
-            return res.json({ 
-                text: "⚠️ **تنبيه SambaNova Billing:** يتطلب حساب SambaNova تفعيل طريقة دفع لاستخدام نماذج Vision. يرجى إضافتها عبر https://cloud.sambanova.ai/plans/billing أو استخدام نموذج تحليل نصوص." 
-            });
-        }
-
-        throw lastError;
+        res.json({ text: response.choices[0].message.content });
     } catch (e) { 
-        console.error("SambaNova Error:", e);
-        res.status(500).json({ error: "SambaNova analysis failed: " + (e.message || "Unknown error") }); 
+        console.error("Vision API Error:", e);
+        res.status(500).json({ error: "Analysis failed: " + (e.message || "Unknown error") }); 
     }
 });
 
